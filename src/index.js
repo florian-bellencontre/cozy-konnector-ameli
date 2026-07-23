@@ -47,8 +47,10 @@ class AmeliContentScript extends SuperContentScript {
       this.launcher.log('info', 'Found firstConnectLocator')
       await firstConnectLocator.click()
     }
+    // since 2026, the connect button redirects to the ameliconnect.ameli.fr
+    // oauth2 login page where the login field is #userfield
     await this.page
-      .getByCss('.deconnexionButton, #connexioncompte_2nir_as')
+      .getByCss('.deconnexionButton, #userfield, #connexioncompte_2nir_as')
       .waitFor()
   }
 
@@ -104,18 +106,18 @@ class AmeliContentScript extends SuperContentScript {
 
   watchLoginForm() {
     this.launcher.log('info', '📍️ watchLoginForm starts')
-    const loginField = document.querySelector('#connexioncompte_2nir_as')
+    const loginField = document.querySelector(
+      '#userfield, #connexioncompte_2nir_as'
+    )
     const passwordField = document.querySelector(
-      '#connexioncompte_2connexion_code'
+      '#passwordfield, #connexioncompte_2connexion_code'
     )
     if (loginField && passwordField) {
       this.launcher.log(
         'info',
         'Found credentials fields, adding form listener'
       )
-      const loginForm = document.querySelector(
-        '#connexioncompte_2connexionCompteForm'
-      )
+      const loginForm = loginField.closest('form')
       loginForm.addEventListener('submit', () => {
         const login = loginField.value
         const password = passwordField.value
@@ -145,16 +147,12 @@ class AmeliContentScript extends SuperContentScript {
   async authWithCredentials(credentials) {
     this.launcher.log('info', 'authWithCredentials')
     const acceptCookiesLocator = this.page.getByCss('#accepteCookie')
-    if (acceptCookiesLocator.isPresent()) {
-      acceptCookiesLocator.click()
+    if (await acceptCookiesLocator.isPresent()) {
+      await acceptCookiesLocator.click()
     }
 
-    await this.page
-      .getByCss('#connexioncompte_2nir_as')
-      .fillText(credentials.login)
-    await this.page
-      .getByCss('#connexioncompte_2connexion_code')
-      .fillText(credentials.password)
+    await this.page.getByCss('#userfield').fillText(credentials.login)
+    await this.page.getByCss('#passwordfield').fillText(credentials.password)
     await this.page.getByCss('#id_r_cnx_btn_submit').click()
     try {
       await this.page.getByCss('#blocEnvoyerOTP, .deconnexionButton').waitFor()
