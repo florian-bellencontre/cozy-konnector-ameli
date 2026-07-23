@@ -34,9 +34,11 @@ class AmeliContentScript extends SuperContentScript {
   async gotoLoginForm() {
     this.launcher.log('info', '🤖 gotoLoginForm starts')
     await this.page.goto(baseUrl)
+    // #userfield: with a stale session, assure.ameli.fr redirects straight
+    // to the ameliconnect login form, skipping the landing page
     await this.page
       .getByCss(
-        '.deconnexionButton, #connexioncompte_2nir_as, a#id_r_cnx_btn_code.r_btlien.connexion'
+        '.deconnexionButton, #userfield, #connexioncompte_2nir_as, a#id_r_cnx_btn_code.r_btlien.connexion'
       )
       .waitFor()
     const firstConnectLocator = this.page.getByCss(
