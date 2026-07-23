@@ -476,6 +476,38 @@ class AmeliContentScript extends SuperContentScript {
       // let the spa finish loading and establish its session with the
       // /compte/ api before querying it ourselves
       await new Promise(resolve => setTimeout(resolve, 8000))
+      // the /compte/ apps use their own ameliconnect sso session, which can
+      // be expired while the portal session is still valid: the page then
+      // redirects to the login form
+      if (await this.page.getByCss('#userfield').isPresent()) {
+        const credentials = await this.getCredentials()
+        if (!credentials) {
+          this.launcher.log(
+            'info',
+            'login required for relevés and no saved credentials, skipping'
+          )
+          return entries
+        }
+        this.launcher.log(
+          'info',
+          'login required for relevés, using saved credentials'
+        )
+        await this.page.getByCss('#userfield').fillText(credentials.login)
+        await this.page
+          .getByCss('#passwordfield')
+          .fillText(credentials.password)
+        await this.page.getByCss('#id_r_cnx_btn_submit').click()
+        await new Promise(resolve => setTimeout(resolve, 10000))
+        if (
+          await this.page.getByCss('#userfield, #blocEnvoyerOTP').isPresent()
+        ) {
+          this.launcher.log(
+            'info',
+            'still not logged in on the relevés app, skipping'
+          )
+          return entries
+        }
+      }
       const now = new Date()
       // no relevé exists for the current month, the api rejects windows
       // reaching into it: end at the previous month like the spa does
