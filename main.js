@@ -26377,9 +26377,9 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
       await this.waitForUserAuthentication()
     } else {
       await this.gotoLoginForm()
-      const authenticated = await this.page.evaluate(
-        checkAuthenticated.bind(this)
-      )
+      // no bind here: a bound function serializes to "[native code]" and
+      // cannot be evaluated in the worker
+      const authenticated = await this.page.evaluate(checkAuthenticated)
       if (!authenticated) {
         try {
           await this.authWithCredentials(credentials)
@@ -26482,9 +26482,7 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
   async ensureNotAuthenticated() {
     this.launcher.log('info', '🤖 ensureNotAuthenticated starts beta-2')
     await this.gotoLoginForm()
-    const authenticated = await this.page.evaluate(
-      checkAuthenticated.bind(this)
-    )
+    const authenticated = await this.page.evaluate(checkAuthenticated)
     if (!authenticated) {
       return true
     }
@@ -26559,7 +26557,8 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
           }
         })
         this.launcher.log('info', 'authState ' + JSON.stringify(state))
-        if (state.deconnexion || state.plusTard) {
+        // state can be false while the worker page is navigating
+        if (state?.deconnexion || state?.plusTard) {
           connected = true
           break
         }
@@ -26721,11 +26720,9 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
       const form = document.querySelector('#pdfSimple')
       doc.date = (0,date_fns__WEBPACK_IMPORTED_MODULE_2__.parse)(doc.date, 'dd/MM/yy', new Date())
       const hash = await this.page.evaluate(hexDigest, doc.vendorRef)
-      const fileprefix = `${(0,date_fns__WEBPACK_IMPORTED_MODULE_3__.format)(
-        doc.date,
-        'yyyMMdd',
-        new Date()
-      )}_ameli_message_${doc.title}_${hash.substr(0, 5)}`
+      const fileprefix = `${(0,date_fns__WEBPACK_IMPORTED_MODULE_3__.format)(doc.date, 'yyyyMMdd')}_ameli_message_${
+        doc.title
+      }_${hash.substr(0, 5)}`
 
       const fileurl = baseUrl + form.getAttribute('action')
 
