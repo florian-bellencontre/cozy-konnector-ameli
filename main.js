@@ -26614,6 +26614,15 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
       })
     }
 
+    const releves = await this.fetchRelevesMensuels()
+    if (releves.length) {
+      await this.saveFiles(releves, {
+        context,
+        fileIdAttributes: ['vendorRef'],
+        contentType: 'application/pdf'
+      })
+    }
+
     const identity = await this.fetchIdentity()
     if (identity) {
       await this.saveIdentity(identity)
@@ -26763,6 +26772,76 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
       }
     }
     return [...docs, ...piecesJointes]
+  }
+
+  async fetchRelevesMensuels() {
+    this.launcher.log('info', '📍️ fetchRelevesMensuels starts')
+    // the detailed paiements list only covers the last ~6 months, but the
+    // relevés mensuels app keeps 27 months of monthly statement pdfs. Its
+    // rest api lives on the same origin and rejects windows wider than ~6
+    // months, so we paginate
+    const entries = []
+    try {
+      await this.page.goto(baseUrl + '/compte/aspm/releves-mensuels')
+      const now = new Date()
+      const oldest = new Date(now.getFullYear(), now.getMonth() - 26, 1)
+      for (let offset = 0; offset < 27; offset += 6) {
+        const fin = new Date(now.getFullYear(), now.getMonth() - offset, 1)
+        let debut = new Date(now.getFullYear(), now.getMonth() - offset - 5, 1)
+        if (fin < oldest) break
+        if (debut < oldest) debut = oldest
+        let response
+        try {
+          response = await this.page.fetch(
+            baseUrl +
+              '/compte/aspmm/rest/releves-mensuels/home' +
+              `?debutPeriode=${(0,date_fns__WEBPACK_IMPORTED_MODULE_3__.format)(debut, 'yyyyMM')}` +
+              `&finPeriode=${(0,date_fns__WEBPACK_IMPORTED_MODULE_3__.format)(fin, 'yyyyMM')}`,
+            { serialization: 'json' }
+          )
+        } catch (err) {
+          this.launcher.log(
+            'warn',
+            `relevés window ${(0,date_fns__WEBPACK_IMPORTED_MODULE_3__.format)(debut, 'yyyyMM')}-${(0,date_fns__WEBPACK_IMPORTED_MODULE_3__.format)(
+              fin,
+              'yyyyMM'
+            )} failed: ${err.message}`
+          )
+          continue
+        }
+        for (const rubrique of response?.rubriquesMensuelles || []) {
+          for (const releve of rubrique.releves || []) {
+            const suffix =
+              releve.objectType === 'ReleveSoinsIJ'
+                ? ''
+                : '_' + releve.objectType
+            const date = (0,date_fns__WEBPACK_IMPORTED_MODULE_2__.parse)(rubrique.moisAnnee, 'yyyyMM', new Date())
+            entries.push({
+              fileurl:
+                baseUrl +
+                '/compte/aspmm/rest/releves-mensuels/pdf/' +
+                encodeURIComponent(releve.identifiant),
+              filename: `${rubrique.moisAnnee}_ameli_releve_mensuel${suffix}.pdf`,
+              // the identifiant token is not stable across sessions, dedup
+              // on the month + type instead
+              vendorRef: `releve_mensuel_${rubrique.moisAnnee}${suffix}`,
+              fileAttributes: {
+                metadata: {
+                  carbonCopy: true,
+                  datetime: date,
+                  datetimeLabel: 'issueDate',
+                  issueDate: date
+                }
+              }
+            })
+          }
+        }
+      }
+    } catch (err) {
+      this.launcher.log('warn', 'fetchRelevesMensuels failed: ' + err.message)
+    }
+    this.launcher.log('info', `Found ${entries.length} relevés mensuels`)
+    return entries
   }
 
   async fetchBills() {
