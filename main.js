@@ -26516,10 +26516,12 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
       await numsecuLocator.waitFor()
     }
 
-    const sourceAccountIdentifier = (await numsecuLocator.innerHTML())
-      .trim()
-      .split(' ')
-      .join('')
+    // innerText + \s: the number is displayed with non breaking spaces,
+    // which innerHTML keeps as &nbsp; and split(' ') does not remove
+    const sourceAccountIdentifier = (await numsecuLocator.innerText()).replace(
+      /\s/g,
+      ''
+    )
 
     if (sourceAccountIdentifier) {
       return {
