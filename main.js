@@ -18473,8 +18473,10 @@ class CssLocator {
   }
 
   async waitFor() {
+    // pages can be very slow to load in the mobile webview (>25s seen on
+    // the infos perso page), 10s was not enough
     await this.contentScript.waitForElementInWorker(this.selector, {
-      timeout: 10000
+      timeout: 30000
     })
   }
 
@@ -26582,7 +26584,7 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
 
     try {
       const givenName = await this.page
-        .getByCss('#idAssure .blocNomPrenom .nom')
+        .getByCss('#idAssure .btn-container .nom')
         .innerText()
       const rawFullName = await this.page
         .getByCss('#pageAssure .NomEtPrenomLabel')
@@ -26591,9 +26593,9 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
       const familyName = rawFullName.replace(givenName, '').trim()
       const birthday = (0,date_fns__WEBPACK_IMPORTED_MODULE_2__.parse)(
         await this.page
-          .getByCss('#idAssure .blocNomPrenom .dateNaissance')
+          .getByCss('#idAssure .btn-container .dateNaissance')
           .innerText(),
-        'dd/mm/yyyy',
+        'dd/MM/yyyy',
         new Date()
       )
 
@@ -26603,7 +26605,7 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
 
       const rawAddress = await this.page
         .getByCss(
-          '[onclick*=as_adresse_postale] > .infoDroite > span:nth-child(1)'
+          'a[href*=as_adresse_postale] > .infoDroite > span:nth-child(1)'
         )
         .innerText()
 
