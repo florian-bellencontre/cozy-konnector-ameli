@@ -226,9 +226,40 @@ class AmeliContentScript extends SuperContentScript {
   async waitForUserAuthentication() {
     this.launcher.log('info', 'waitForUserAuthentication starts')
     await this.page.show()
-    // give the user enough time to type credentials and a potential OTP,
-    // the default 30s timeout was way too short
-    await this.page.waitFor(checkAuthenticated, { timeout: 600000 })
+    // give the user enough time to type credentials and a potential OTP.
+    // The profile completion interstitial (Plus tard) counts as
+    // authenticated: getUserDataFromWebsite already knows how to skip it
+    const start = Date.now()
+    let connected = false
+    while (Date.now() - start < 600000) {
+      try {
+        const state = await this.page.evaluate(function getAuthState() {
+          return {
+            url: window.location.href,
+            deconnexion: Boolean(document.querySelector('.deconnexionButton')),
+            plusTard: Boolean(
+              document.querySelector(
+                ".boutonComplementaireBlanc[value='Plus tard']"
+              )
+            ),
+            campagne: Boolean(
+              document.querySelector('#idBoutonFermerFenetreModale')
+            )
+          }
+        })
+        this.launcher.log('info', 'authState ' + JSON.stringify(state))
+        if (state.deconnexion || state.plusTard) {
+          connected = true
+          break
+        }
+      } catch (err) {
+        this.launcher.log('info', 'authState check failed: ' + err.message)
+      }
+      await new Promise(resolve => setTimeout(resolve, 3000))
+    }
+    if (!connected) {
+      throw new Error('LOGIN_FAILED')
+    }
     await this.page.hide()
   }
 
