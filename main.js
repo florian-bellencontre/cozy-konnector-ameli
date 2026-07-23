@@ -26784,6 +26784,9 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
     try {
       await this.page.goto(baseUrl + '/compte/aspm/releves-mensuels')
       this.launcher.log('info', 'on relevés mensuels page')
+      // let the spa finish loading and establish its session with the
+      // /compte/ api before querying it ourselves
+      await new Promise(resolve => setTimeout(resolve, 8000))
       const now = new Date()
       // no relevé exists for the current month, the api rejects windows
       // reaching into it: end at the previous month like the spa does
@@ -26805,13 +26808,22 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
         const window = `${(0,date_fns__WEBPACK_IMPORTED_MODULE_3__.format)(debut, 'yyyyMM')}-${(0,date_fns__WEBPACK_IMPORTED_MODULE_3__.format)(fin, 'yyyyMM')}`
         let response
         try {
-          response = await this.page.fetch(
+          const raw = await this.page.fetch(
             baseUrl +
               '/compte/aspmm/rest/releves-mensuels/home' +
               `?debutPeriode=${(0,date_fns__WEBPACK_IMPORTED_MODULE_3__.format)(debut, 'yyyyMM')}` +
               `&finPeriode=${(0,date_fns__WEBPACK_IMPORTED_MODULE_3__.format)(fin, 'yyyyMM')}`,
-            { serialization: 'json' }
+            { serialization: 'text' }
           )
+          response = JSON.parse(raw)
+          if (!response?.rubriquesMensuelles) {
+            this.launcher.log(
+              'info',
+              `relevés window ${window} unexpected response: ${String(
+                raw
+              ).slice(0, 200)}`
+            )
+          }
         } catch (err) {
           this.launcher.log(
             'info',
