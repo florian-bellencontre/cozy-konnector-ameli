@@ -472,13 +472,26 @@ class AmeliContentScript extends SuperContentScript {
     const entries = []
     try {
       await this.page.goto(baseUrl + '/compte/aspm/releves-mensuels')
+      this.launcher.log('info', 'on relevés mensuels page')
       const now = new Date()
+      // no relevé exists for the current month, the api rejects windows
+      // reaching into it: end at the previous month like the spa does
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
       const oldest = new Date(now.getFullYear(), now.getMonth() - 26, 1)
-      for (let offset = 0; offset < 27; offset += 6) {
-        const fin = new Date(now.getFullYear(), now.getMonth() - offset, 1)
-        let debut = new Date(now.getFullYear(), now.getMonth() - offset - 5, 1)
+      for (let offset = 0; offset < 26; offset += 6) {
+        const fin = new Date(
+          lastMonth.getFullYear(),
+          lastMonth.getMonth() - offset,
+          1
+        )
+        let debut = new Date(
+          lastMonth.getFullYear(),
+          lastMonth.getMonth() - offset - 5,
+          1
+        )
         if (fin < oldest) break
         if (debut < oldest) debut = oldest
+        const window = `${format(debut, 'yyyyMM')}-${format(fin, 'yyyyMM')}`
         let response
         try {
           response = await this.page.fetch(
@@ -490,14 +503,20 @@ class AmeliContentScript extends SuperContentScript {
           )
         } catch (err) {
           this.launcher.log(
-            'warn',
-            `relevés window ${format(debut, 'yyyyMM')}-${format(
-              fin,
-              'yyyyMM'
-            )} failed: ${err.message}`
+            'info',
+            `relevés window ${window} failed: ${err.message}`
           )
           continue
         }
+        this.launcher.log(
+          'info',
+          `relevés window ${window}: ${
+            response?.rubriquesMensuelles?.length ?? 'no'
+          } rubriques, ${
+            response?.rubriquesMensuelles?.filter(r => r.releves?.length)
+              ?.length ?? 0
+          } with relevés`
+        )
         for (const rubrique of response?.rubriquesMensuelles || []) {
           for (const releve of rubrique.releves || []) {
             const suffix =
