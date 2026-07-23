@@ -180,7 +180,13 @@ class AmeliContentScript extends SuperContentScript {
 
     this.launcher.log('info', 'User authenticated. Logging out')
     await this.page.getByCss('.deconnexionButton').click()
-    await this.page.getByCss('#as_deconnexion_page').waitFor()
+    // depending on the session state, the logout may land on the old logout
+    // page, the ameliconnect login form or the landing page
+    await this.page
+      .getByCss(
+        '#as_deconnexion_page, #userfield, #connexioncompte_2nir_as, a#id_r_cnx_btn_code.r_btlien.connexion'
+      )
+      .waitFor()
     return true
   }
 
@@ -220,7 +226,9 @@ class AmeliContentScript extends SuperContentScript {
   async waitForUserAuthentication() {
     this.launcher.log('info', 'waitForUserAuthentication starts')
     await this.page.show()
-    await this.page.waitFor(checkAuthenticated)
+    // give the user enough time to type credentials and a potential OTP,
+    // the default 30s timeout was way too short
+    await this.page.waitFor(checkAuthenticated, { timeout: 600000 })
     await this.page.hide()
   }
 
