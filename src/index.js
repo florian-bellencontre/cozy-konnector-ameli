@@ -273,7 +273,7 @@ class AmeliContentScript extends SuperContentScript {
 
     try {
       const givenName = await this.page
-        .getByCss('#idAssure .blocNomPrenom .nom')
+        .getByCss('#idAssure .btn-container .nom')
         .innerText()
       const rawFullName = await this.page
         .getByCss('#pageAssure .NomEtPrenomLabel')
@@ -282,9 +282,9 @@ class AmeliContentScript extends SuperContentScript {
       const familyName = rawFullName.replace(givenName, '').trim()
       const birthday = parse(
         await this.page
-          .getByCss('#idAssure .blocNomPrenom .dateNaissance')
+          .getByCss('#idAssure .btn-container .dateNaissance')
           .innerText(),
-        'dd/mm/yyyy',
+        'dd/MM/yyyy',
         new Date()
       )
 
@@ -294,7 +294,7 @@ class AmeliContentScript extends SuperContentScript {
 
       const rawAddress = await this.page
         .getByCss(
-          '[onclick*=as_adresse_postale] > .infoDroite > span:nth-child(1)'
+          'a[href*=as_adresse_postale] > .infoDroite > span:nth-child(1)'
         )
         .innerText()
 

@@ -148,8 +148,10 @@ class CssLocator {
   }
 
   async waitFor() {
+    // pages can be very slow to load in the mobile webview (>25s seen on
+    // the infos perso page), 10s was not enough
     await this.contentScript.waitForElementInWorker(this.selector, {
-      timeout: 10000
+      timeout: 30000
     })
   }
 
