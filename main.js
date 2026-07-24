@@ -18354,6 +18354,16 @@ class SuperContentScript extends cozy_clisk_dist_contentscript__WEBPACK_IMPORTED
       this.launcher.log('warn', 'Failed to download ' + entry.fileurl)
       return false
     }
+    if (entry.fileurl.includes('/releves-mensuels/pdf/')) {
+      // this endpoint answers json with the pdf as base64 in `contenu`
+      const { contenu } = await response.json()
+      if (!contenu) {
+        this.launcher.log('warn', 'No pdf content in ' + entry.fileurl)
+        return false
+      }
+      entry.dataUri = 'data:application/pdf;base64,' + contenu
+      return entry.dataUri
+    }
     entry.blob = await response.blob()
     entry.dataUri = await (0,cozy_clisk_dist_contentscript_utils__WEBPACK_IMPORTED_MODULE_2__.blobToBase64)(entry.blob)
     return entry.dataUri
@@ -26845,7 +26855,7 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
               '/compte/aspmm/rest/releves-mensuels/home' +
               `?debutPeriode=${(0,date_fns__WEBPACK_IMPORTED_MODULE_3__.format)(debut, 'yyyyMM')}` +
               `&finPeriode=${(0,date_fns__WEBPACK_IMPORTED_MODULE_3__.format)(fin, 'yyyyMM')}`,
-            { serialization: 'text' }
+            { serialization: 'text', headers: relevesApiHeaders() }
           )
           response = JSON.parse(raw)
           if (!response?.rubriquesMensuelles) {
@@ -26884,6 +26894,7 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
                 baseUrl +
                 '/compte/aspmm/rest/releves-mensuels/pdf/' +
                 encodeURIComponent(releve.identifiant),
+              requestOptions: { headers: relevesApiHeaders() },
               filename: `${rubrique.moisAnnee}_ameli_releve_mensuel${suffix}.pdf`,
               // the identifiant token is not stable across sessions, dedup
               // on the month + type instead
@@ -26963,6 +26974,23 @@ connector
 function checkAuthenticated() {
   console.log('info', '📍️  checkAuthenticated starts')
   return Boolean(document.querySelector('.deconnexionButton'))
+}
+
+function relevesApiHeaders() {
+  // the aspmm api rejects requests missing these headers with
+  // DONNEES_CLIENTES_NON_VALIDEES; values mirror the spa's shared fetch
+  // wrapper (fetchWithErrorHandling in /compte/asdsx)
+  const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+  })
+  return {
+    'X-Correlation-ID': uuid,
+    'X-App-Name': 'ASDS_X',
+    'X-App-Version': '25.40.0',
+    canal: '{"canal": "PORTAIL", "reduction":  "ASDS_X"}',
+    'X-Request-Engine': 'Axios'
+  }
 }
 
 function parseAmount(amount) {
