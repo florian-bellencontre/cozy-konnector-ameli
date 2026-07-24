@@ -79,6 +79,9 @@ class AmeliContentScript extends SuperContentScript {
         }
       }
     }
+    // whatever the path taken, make sure the worker webview is hidden
+    // again before the scraping starts
+    await this.page.hide()
     return true
   }
 
@@ -137,7 +140,9 @@ class AmeliContentScript extends SuperContentScript {
     if (event === 'loginSubmit') {
       this.launcher.log('info', `User's credential intercepted`)
       const { login, password } = payload
-      this.store.userCredentials = { login, password }
+      // the ameliconnect nir field formats the number with spaces while
+      // typing: strip them or the replayed autologin gets rejected
+      this.store.userCredentials = { login: login.replace(/\s/g, ''), password }
     } else if (
       event === 'requestResponse' &&
       payload?.identifier === 'javascriptservlet'
@@ -153,13 +158,23 @@ class AmeliContentScript extends SuperContentScript {
       await acceptCookiesLocator.click()
     }
 
-    await this.page.getByCss('#userfield').fillText(credentials.login)
+    // strip spaces: credentials saved by older versions kept the nir
+    // field spaced display format
+    await this.page
+      .getByCss('#userfield')
+      .fillText(credentials.login.replace(/\s/g, ''))
     await this.page.getByCss('#passwordfield').fillText(credentials.password)
     await this.page.getByCss('#id_r_cnx_btn_submit').click()
     try {
       await this.page.getByCss('#blocEnvoyerOTP, .deconnexionButton').waitFor()
     } catch (err) {
       this.log('error', err.message)
+      try {
+        const errorMsg = await this.page.getByCss('#errormsg').innerText()
+        this.launcher.log('warn', 'ameliconnect error message: ' + errorMsg)
+      } catch (e) {
+        this.launcher.log('info', 'no ameliconnect error message displayed')
+      }
       throw new Error('LOGIN_FAILED')
     }
 
@@ -492,7 +507,9 @@ class AmeliContentScript extends SuperContentScript {
           'info',
           'login required for relevés, using saved credentials'
         )
-        await this.page.getByCss('#userfield').fillText(credentials.login)
+        await this.page
+          .getByCss('#userfield')
+          .fillText(credentials.login.replace(/\s/g, ''))
         await this.page
           .getByCss('#passwordfield')
           .fillText(credentials.password)
