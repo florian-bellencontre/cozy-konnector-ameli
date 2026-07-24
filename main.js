@@ -27169,6 +27169,9 @@ function getHealthCareBills(reimbursements) {
       ['PAIEMENT_A_UN_TIERS', 'REMBOURSEMENT_SOINS'].includes(r.naturePaiement)
     )
     .forEach(reimbursement => {
+      // the new portal serves an empty idPaiement in the onclick attribute:
+      // derive a stable deduplication key from the same data as the filename
+      const vendorRef = getFileName(reimbursement).replace(/\.pdf$/, '')
       for (const beneficiary in reimbursement.beneficiaries) {
         reimbursement.beneficiaries[beneficiary].forEach(healthCare => {
           const newbill = {
@@ -27182,7 +27185,7 @@ function getHealthCareBills(reimbursements) {
             amount: healthCare.montantVersé,
             originalAmount: healthCare.montantPayé,
             fileurl: baseUrl + reimbursement.link,
-            vendorRef: reimbursement.idPaiement,
+            vendorRef,
             filename: getFileName(reimbursement),
             fileAttributes: {
               metadata: {
@@ -27212,7 +27215,7 @@ function getHealthCareBills(reimbursements) {
           isRefund: true,
           amount: reimbursement.participation.montantVersé,
           fileurl: baseUrl + reimbursement.link,
-          vendorRef: reimbursement.idPaiement,
+          vendorRef,
           filename: getFileName(reimbursement),
           fileAttributes: {
             metadata: {
