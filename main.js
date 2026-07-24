@@ -26539,11 +26539,28 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
     // defensive: whatever happened during authentication, the scraping
     // must never be displayed to the user
     await this.page.hide()
-    await this.page.goto(infoUrl)
-
-    await this.page
-      .getByCss(`.blocNumSecu, .boutonComplementaireBlanc[value='Plus tard']`)
-      .waitFor()
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await this.page.goto(infoUrl)
+      await this.page
+        .getByCss(
+          `.blocNumSecu, .boutonComplementaireBlanc[value='Plus tard'], #userfield`
+        )
+        .waitFor()
+      if (!(await this.page.getByCss('#userfield').isPresent())) {
+        break
+      }
+      if (attempt > 0) {
+        throw new Error('LOGIN_FAILED')
+      }
+      // even after a successful password login, ameli may require a
+      // step-up verification (email otp on a new device) to reach the
+      // personal data pages: hand the webview over to the user
+      this.launcher.log(
+        'info',
+        'ameli asks for an extra verification, showing the login page'
+      )
+      await this.waitForUserAuthentication()
+    }
 
     const numsecuLocator = this.page.getByCss('.blocNumSecu')
     const plusTardLocator = this.page.getByCss(
