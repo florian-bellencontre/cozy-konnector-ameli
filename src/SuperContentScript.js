@@ -29,6 +29,16 @@ export default class SuperContentScript extends ContentScript {
       this.launcher.log('warn', 'Failed to download ' + entry.fileurl)
       return false
     }
+    if (entry.fileurl.includes('/releves-mensuels/pdf/')) {
+      // this endpoint answers json with the pdf as base64 in `contenu`
+      const { contenu } = await response.json()
+      if (!contenu) {
+        this.launcher.log('warn', 'No pdf content in ' + entry.fileurl)
+        return false
+      }
+      entry.dataUri = 'data:application/pdf;base64,' + contenu
+      return entry.dataUri
+    }
     entry.blob = await response.blob()
     entry.dataUri = await blobToBase64(entry.blob)
     return entry.dataUri

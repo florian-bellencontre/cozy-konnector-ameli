@@ -534,7 +534,7 @@ class AmeliContentScript extends SuperContentScript {
               '/compte/aspmm/rest/releves-mensuels/home' +
               `?debutPeriode=${format(debut, 'yyyyMM')}` +
               `&finPeriode=${format(fin, 'yyyyMM')}`,
-            { serialization: 'text' }
+            { serialization: 'text', headers: relevesApiHeaders() }
           )
           response = JSON.parse(raw)
           if (!response?.rubriquesMensuelles) {
@@ -573,6 +573,7 @@ class AmeliContentScript extends SuperContentScript {
                 baseUrl +
                 '/compte/aspmm/rest/releves-mensuels/pdf/' +
                 encodeURIComponent(releve.identifiant),
+              requestOptions: { headers: relevesApiHeaders() },
               filename: `${rubrique.moisAnnee}_ameli_releve_mensuel${suffix}.pdf`,
               // the identifiant token is not stable across sessions, dedup
               // on the month + type instead
@@ -652,6 +653,23 @@ connector
 function checkAuthenticated() {
   console.log('info', '📍️  checkAuthenticated starts')
   return Boolean(document.querySelector('.deconnexionButton'))
+}
+
+function relevesApiHeaders() {
+  // the aspmm api rejects requests missing these headers with
+  // DONNEES_CLIENTES_NON_VALIDEES; values mirror the spa's shared fetch
+  // wrapper (fetchWithErrorHandling in /compte/asdsx)
+  const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+  })
+  return {
+    'X-Correlation-ID': uuid,
+    'X-App-Name': 'ASDS_X',
+    'X-App-Version': '25.40.0',
+    canal: '{"canal": "PORTAIL", "reduction":  "ASDS_X"}',
+    'X-Request-Engine': 'Axios'
+  }
 }
 
 function parseAmount(amount) {
