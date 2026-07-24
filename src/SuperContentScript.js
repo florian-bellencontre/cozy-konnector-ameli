@@ -86,11 +86,21 @@ class CliskWorker {
   }
 
   show() {
+    this.contentScript.log('info', '👁️ showing worker webview')
     return this.contentScript.setWorkerState({ visible: true })
   }
 
-  hide() {
-    return this.contentScript.setWorkerState({ visible: false })
+  async hide() {
+    this.contentScript.log('info', '🙈 hiding worker webview')
+    try {
+      await this.contentScript.setWorkerState({ visible: false })
+    } catch (err) {
+      // a visibility hiccup must not fail the whole run
+      this.contentScript.log(
+        'warn',
+        'failed to hide the worker webview: ' + err.message
+      )
+    }
   }
 
   async runLocator(locatorJson, method, ...args) {

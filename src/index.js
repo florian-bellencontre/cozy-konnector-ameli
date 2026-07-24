@@ -205,6 +205,9 @@ class AmeliContentScript extends SuperContentScript {
 
   async getUserDataFromWebsite() {
     this.launcher.log('info', '🤖 getUserDataFromWebsite starts')
+    // defensive: whatever happened during authentication, the scraping
+    // must never be displayed to the user
+    await this.page.hide()
     await this.page.goto(infoUrl)
 
     await this.page
