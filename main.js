@@ -26511,6 +26511,11 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
 
     if (await this.page.getByCss('#blocEnvoyerOTP').isPresent()) {
       await this.waitForUserAuthentication()
+    } else {
+      // the login redirect chain keeps bouncing for a couple of seconds
+      // after the logged-in page first shows up: let it settle so the
+      // next navigation is not swallowed by a pending redirect
+      await new Promise(resolve => setTimeout(resolve, 3000))
     }
   }
 
@@ -26539,6 +26544,16 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
     // defensive: whatever happened during authentication, the scraping
     // must never be displayed to the user
     await this.page.hide()
+    // the ameli login is the nir, which is also the account identifier
+    // displayed on the infos page: use it directly instead of a fragile
+    // navigation right after the login redirect chain
+    const credentials =
+      this.store.userCredentials ?? (await this.getCredentials())
+    const login = credentials?.login?.replace(/\s/g, '')
+    if (login) {
+      return { sourceAccountIdentifier: login }
+    }
+    // no credentials known (e.g. franceconnect login): scrape it
     const numsecuLocator = this.page.getByCss('.blocNumSecu')
     for (let attempt = 0; attempt < 5; attempt++) {
       await this.page.goto(infoUrl)
@@ -26618,6 +26633,8 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
         // state can be false while the worker page is navigating
         if (state?.deconnexion || state?.plusTard) {
           connected = true
+          // let the post-login redirect chain settle before navigating
+          await new Promise(resolve => setTimeout(resolve, 3000))
           break
         }
       } catch (err) {
