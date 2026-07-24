@@ -26539,37 +26539,38 @@ class AmeliContentScript extends _SuperContentScript__WEBPACK_IMPORTED_MODULE_1_
     // defensive: whatever happened during authentication, the scraping
     // must never be displayed to the user
     await this.page.hide()
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const numsecuLocator = this.page.getByCss('.blocNumSecu')
+    for (let attempt = 0; attempt < 5; attempt++) {
       await this.page.goto(infoUrl)
       await this.page
         .getByCss(
-          `.blocNumSecu, .boutonComplementaireBlanc[value='Plus tard'], #userfield`
+          `.blocNumSecu, .boutonComplementaireBlanc[value='Plus tard'], #userfield, .deconnexionButton`
         )
         .waitFor()
-      if (!(await this.page.getByCss('#userfield').isPresent())) {
+      if (await numsecuLocator.isPresent()) {
         break
       }
-      if (attempt > 0) {
-        throw new Error('LOGIN_FAILED')
+      if (await this.page.getByCss('#userfield').isPresent()) {
+        // even after a successful password login, ameli may require a
+        // step-up verification (email otp on a new device) to reach the
+        // personal data pages: hand the webview over to the user
+        this.launcher.log(
+          'info',
+          'ameli asks for an extra verification, showing the login page'
+        )
+        await this.waitForUserAuthentication()
+        continue
       }
-      // even after a successful password login, ameli may require a
-      // step-up verification (email otp on a new device) to reach the
-      // personal data pages: hand the webview over to the user
+      // connected (accueil or profile completion interstitial) but not on
+      // the infos page: the post-login redirect chain may still be
+      // settling, let it finish before trying again
       this.launcher.log(
         'info',
-        'ameli asks for an extra verification, showing the login page'
+        'connected but not on the infos page yet, retrying'
       )
-      await this.waitForUserAuthentication()
+      await new Promise(resolve => setTimeout(resolve, 3000))
     }
-
-    const numsecuLocator = this.page.getByCss('.blocNumSecu')
-    const plusTardLocator = this.page.getByCss(
-      `.boutonComplementaireBlanc[value='Plus tard']`
-    )
-    if (await plusTardLocator.isPresent()) {
-      await this.page.goto(infoUrl)
-      await numsecuLocator.waitFor()
-    }
+    await numsecuLocator.waitFor()
 
     // innerText + \s: the number is displayed with non breaking spaces,
     // which innerHTML keeps as &nbsp; and split(' ') does not remove
